@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS Cosméticos - Boleta de Venta Electrónica (SUNAT UBL 2.1)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+
+      #ticket-impreso,
+      #ticket-impreso * {
+        visibility: visible;
+      }
+
+      #ticket-impreso {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 10px;
+        box-shadow: none !important;
+        border: none !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-pink-900 text-white shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-pink-700 p-2.5 rounded-lg shadow-inner">
+          <i class="fa-solid fa-wand-magic-sparkles text-2xl text-pink-200"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Boutique Cosméticos POS</h1>
+          <p class="text-xs text-pink-200">Emisión de Boletas Electrónicas SUNAT (UBL 2.1 Serverless)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <div id="backend-status-badge"
+          class="flex items-center gap-2 bg-pink-950/70 border border-pink-700/50 px-3 py-1.5 rounded-full">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="status-dot"></span>
+          <span class="text-xs font-medium text-pink-100" id="backend-status-text">Conectando al Backend...</span>
+        </div>
+        <button onclick="checkBackendHealth()" class="text-xs text-pink-200 hover:text-white underline">
+          <i class="fa-solid fa-arrows-rotate"></i> Reintentar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Columna Izquierda: Punto de Venta (Emisión) -->
+    <div class="lg:col-span-6 space-y-6 no-print">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-receipt text-pink-600"></i> Emisión de Boleta de Venta
+            </h2>
+            <p class="text-xs text-slate-500">Comprobante de pago electrónico para consumidor final</p>
+          </div>
+          <button onclick="generarNuevoCorrelativo()"
+            class="text-xs bg-pink-50 hover:bg-pink-100 text-pink-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 border border-pink-200">
+            <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> Nueva Boleta
+          </button>
+        </div>
+
+        <form id="invoice-form" onsubmit="emitirFactura(event)" class="mt-4 space-y-4">
+          <!-- Datos de Cabecera -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Serie y Correlativo:</label>
+              <input type="text" id="invoice-id" value="B001-00000123" required
+                class="w-full bg-slate-50 border border-slate-300 rounded p-2 font-mono font-bold text-pink-900 focus:ring-2 focus:ring-pink-500 outline-none">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Tipo de Comprobante:</label>
+              <div
+                class="w-full bg-slate-100 border border-slate-300 rounded p-2 text-slate-700 font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice text-pink-600"></i>
+                <span>Boleta de Venta</span>
+              </div>
+              <input type="hidden" id="invoice-type" value="03">
+            </div>
+          </div>
+
+          <!-- Datos Emisor y Cliente -->
+          <div class="p-3 bg-pink-50/50 rounded-lg border border-pink-100 space-y-2 text-xs">
+            <div class="font-semibold text-slate-700 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-store text-pink-600"></i> Emisor: Boutique Cosméticos Perú S.A.C. (RUC 20123456789)
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-pink-100">
+              <div>
+                <label class="block text-slate-600 font-medium mb-0.5">DNI del Cliente:</label>
+                <input type="text" id="customer-id" maxlength="8" required
+                  class="w-full bg-white border border-slate-300 rounded p-1.5 font-mono focus:ring-2 focus:ring-pink-400 outline-none"
+                  placeholder="Ingresa DNI (8 dígitos)">
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-0.5">Nombre del Cliente:</label>
+                <input type="text" id="customer-name" required
+                  class="w-full bg-white border border-slate-300 rounded p-1.5 focus:ring-2 focus:ring-pink-400 outline-none"
+                  placeholder="Ingresa nombres y apellidos">
+              </div>
+            </div>
+          </div>
+
+          <!-- 5 Ítems de Cosméticos -->
+          <div>
+            <label class="block font-medium text-slate-700 text-xs mb-1.5 flex justify-between items-center">
+              <span class="font-bold flex items-center gap-1">
+                <i class="fa-solid fa-bag-shopping text-pink-500"></i> Productos de Cosmética (5 Ítems):
+              </span>
+              <span class="text-[11px] text-slate-400">UBL 2.1 InvoiceLine</span>
+            </label>
+
+            <div
+              class="border border-slate-200 rounded-lg p-2.5 bg-slate-50 space-y-2 text-xs divide-y divide-slate-200/70">
+
+              <!-- Producto 1 -->
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 text-center font-bold text-slate-400">1</span>
+                  <div>
+                    <p class="font-semibold text-slate-800">Labial Mate Larga Duración (Rojo Pasión)</p>
+                    <span class="text-[10px] text-slate-500">2 und x S/ 25.00</span>
+                  </div>
+                </div>
+                <span class="font-mono font-medium text-slate-700">S/ 50.00</span>
+              </div>
+
+              <!-- Producto 2 -->
+              <div class="flex items-center justify-between pt-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 text-center font-bold text-slate-400">2</span>
+                  <div>
+                    <p class="font-semibold text-slate-800">Base Líquida HD Mate Cobertura Total</p>
+                    <span class="text-[10px] text-slate-500">1 und x S/ 45.00</span>
+                  </div>
+                </div>
+                <span class="font-mono font-medium text-slate-700">S/ 45.00</span>
+              </div>
+
+              <!-- Producto 3 -->
+              <div class="flex items-center justify-between pt-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 text-center font-bold text-slate-400">3</span>
+                  <div>
+                    <p class="font-semibold text-slate-800">Máscara de Pestañas Waterproof Efecto Pestañina</p>
+                    <span class="text-[10px] text-slate-500">1 und x S/ 30.00</span>
+                  </div>
+                </div>
+                <span class="font-mono font-medium text-slate-700">S/ 30.00</span>
+              </div>
+
+              <!-- Producto 4 -->
+              <div class="flex items-center justify-between pt-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 text-center font-bold text-slate-400">4</span>
+                  <div>
+                    <p class="font-semibold text-slate-800">Paleta de Sombras Nude 12 Tonos Profesionales</p>
+                    <span class="text-[10px] text-slate-500">1 und x S/ 55.00</span>
+                  </div>
+                </div>
+                <span class="font-mono font-medium text-slate-700">S/ 55.00</span>
+              </div>
+
+              <!-- Producto 5 -->
+              <div class="flex items-center justify-between pt-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 text-center font-bold text-slate-400">5</span>
+                  <div>
+                    <p class="font-semibold text-slate-800">Sérum Facial con Ácido Hialurónico 30ml</p>
+                    <span class="text-[10px] text-slate-500">1 und x S/ 40.00</span>
+                  </div>
+                </div>
+                <span class="font-mono font-medium text-slate-700">S/ 40.00</span>
+              </div>
+
+              <!-- Totales -->
+              <div class="pt-3 space-y-1">
+                <div class="flex justify-between items-center text-slate-600">
+                  <span>Subtotal Gravado (Sin IGV):</span>
+                  <span class="font-mono font-medium">S/ 220.00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span>IGV (18%):</span>
+                  <span class="font-mono font-medium">S/ 39.60</span>
+                </div>
+                <div
+                  class="flex justify-between items-center text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-300">
+                  <span>Total a Pagar:</span>
+                  <span class="text-pink-700 font-mono text-base font-extrabold">S/ 259.60 PEN</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Botón de Envío -->
+          <button type="submit" id="btn-submit"
+            class="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-150 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Emitir Boleta de Venta a la Nube</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Monitor Asíncrono & Representación del Comprobante -->
+    <div class="lg:col-span-6 space-y-6">
+
+      <!-- Tarjeta de Estado del Comprobante -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 no-print">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-satellite-dish text-pink-600"></i> Monitor Asíncrono de Boletas
+          </h2>
+          <div class="flex items-center gap-2">
+            <button onclick="consultarEstadoManual()"
+              class="text-xs bg-pink-50 hover:bg-pink-100 text-pink-700 px-3 py-1 rounded-lg font-medium transition flex items-center gap-1 border border-pink-200">
+              <i class="fa-solid fa-rotate"></i> Consultar Ahora
+            </button>
+          </div>
+        </div>
+
+        <!-- Ciclo de Vida Visual (Stepper) -->
+        <div class="mt-5 py-2">
+          <div class="grid grid-cols-4 gap-2 text-center relative">
+            <div class="flex flex-col items-center">
+              <div id="step-pos"
+                class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs mb-1 transition-all">
+                1</div>
+              <span class="text-[11px] font-medium text-slate-600">POS Emite</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div id="step-firestore"
+                class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs mb-1 transition-all">
+                2</div>
+              <span class="text-[11px] font-medium text-slate-600">Firestore (BD)</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div id="step-pubsub"
+                class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs mb-1 transition-all">
+                3</div>
+              <span class="text-[11px] font-medium text-slate-600">Pub/Sub (Cola)</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div id="step-worker"
+                class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs mb-1 transition-all">
+                4</div>
+              <span class="text-[11px] font-medium text-slate-600">SUNAT / OSE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner de Estado Actual -->
+        <div id="status-card"
+          class="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200 text-center transition-all">
+          <p class="text-xs text-slate-500 mb-1">Estado de la Boleta:</p>
+          <div id="status-badge"
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
+            <i class="fa-solid fa-clock"></i> ESPERANDO EMISIÓN
+          </div>
+          <p id="status-message" class="text-xs text-slate-600 mt-2">Haz clic en "Emitir Boleta de Venta a la Nube".</p>
+
+          <div id="meta-info"
+            class="mt-3 pt-3 border-t border-slate-200 hidden text-left text-xs space-y-1 font-mono text-slate-600">
+            <div><strong>Boleta ID:</strong> <span id="meta-invoice-id">-</span></div>
+            <div><strong>Mensaje Pub/Sub ID:</strong> <span id="meta-pubsub-id">-</span></div>
+            <div><strong>Hora Procesamiento:</strong> <span id="meta-timestamp">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pestañas: Representación Impresa (Ticket Térmico) vs XML UBL 2.1 -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+
+        <!-- Botones de Pestañas -->
+        <div class="flex justify-between items-center border-b border-slate-200 pb-3 no-print">
+          <div class="flex gap-2">
+            <button onclick="cambiarPestana('ticket')" id="tab-btn-ticket"
+              class="text-xs font-bold px-3 py-1.5 rounded-lg bg-pink-600 text-white shadow-sm flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-receipt"></i> Representación Impresa (Ticket)
+            </button>
+            <button onclick="cambiarPestana('xml')" id="tab-btn-xml"
+              class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-code"></i> XML UBL 2.1
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="window.print()" id="btn-imprimir"
+              class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-print"></i> Imprimir
+            </button>
+            <button onclick="copiarXML()" id="btn-copy-xml"
+              class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded font-medium transition hidden items-center gap-1">
+              <i class="fa-regular fa-copy"></i> Copiar XML
+            </button>
+          </div>
+        </div>
+
+        <!-- 1. VISTA: Representación Impresa (Ticket Térmico POS 80mm) -->
+        <div id="vista-ticket" class="mt-4 flex justify-center">
+          <div id="ticket-impreso"
+            class="w-full max-w-sm bg-white p-5 border border-slate-300 shadow-md font-mono text-[11px] leading-tight text-slate-900 rounded-sm">
+
+            <div class="text-center">
+              <p class="font-bold text-sm tracking-wide">==========================================</p>
+              <p class="font-extrabold text-xs uppercase" id="t-empresa">BOUTIQUE COSMÉTICOS PERÚ S.A.C.</p>
+              <p id="t-direccion">Av. Los Mirtos 456 - Lince, Lima</p>
+              <p id="t-telefono">Telf: (01) 987 654 321</p>
+              <p class="font-bold text-sm tracking-wide">==========================================</p>
+            </div>
+
+            <div class="my-2">
+              <p><strong>RUC:</strong> <span id="t-emisor-ruc">20123456789</span></p>
+              <p class="font-bold uppercase text-[12px] my-0.5">BOLETA DE VENTA ELECTRÓNICA</p>
+              <p><strong>Nro:</strong> <span id="t-numero" class="font-bold text-pink-700">B001-00000123</span></p>
+            </div>
+
+            <p class="font-bold text-sm tracking-wide">==========================================</p>
+            <div class="space-y-0.5 my-1.5">
+              <p><strong>Fecha Emisión:</strong> <span id="t-fecha">01/11/2026 16:55</span></p>
+              <p><strong>Moneda :</strong> SOLES (PEN)</p>
+              <p><strong>Cliente :</strong> <span id="t-cliente" class="uppercase">María Flores Torres</span></p>
+              <p><strong>DNI :</strong> <span id="t-dni">74859612</span></p>
+            </div>
+            <p class="font-bold text-sm tracking-wide">==========================================</p>
+
+            <!-- Tabla de Ítems -->
+            <div class="my-2">
+              <div class="flex justify-between font-bold border-b border-dashed border-slate-400 pb-1">
+                <span class="w-8">Cant.</span>
+                <span class="flex-1 px-1">Descripción</span>
+                <span class="w-12 text-right">P.Unit</span>
+                <span class="w-12 text-right">Total</span>
+              </div>
+
+              <div class="space-y-1.5 pt-1.5 border-b border-dashed border-slate-400 pb-2" id="t-items">
+                <div class="flex justify-between">
+                  <span class="w-8">2</span>
+                  <span class="flex-1 px-1">Labial Mate Larga</span>
+                  <span class="w-12 text-right">25.00</span>
+                  <span class="w-12 text-right">50.00</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="w-8">1</span>
+                  <span class="flex-1 px-1">Base Líquida HD</span>
+                  <span class="w-12 text-right">45.00</span>
+                  <span class="w-12 text-right">45.00</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="w-8">1</span>
+                  <span class="flex-1 px-1">Máscara Pestañas</span>
+                  <span class="w-12 text-right">30.00</span>
+                  <span class="w-12 text-right">30.00</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="w-8">1</span>
+                  <span class="flex-1 px-1">Paleta Sombras 12</span>
+                  <span class="w-12 text-right">55.00</span>
+                  <span class="w-12 text-right">55.00</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="w-8">1</span>
+                  <span class="flex-1 px-1">Sérum Ácido Hialu.</span>
+                  <span class="w-12 text-right">40.00</span>
+                  <span class="w-12 text-right">40.00</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="font-bold text-sm tracking-wide">==========================================</p>
+            <div class="space-y-1 my-2">
+              <div class="flex justify-between">
+                <span>Op. Gravada:</span>
+                <span id="t-gravada">220.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span>IGV (18%):</span>
+                <span id="t-igv">39.60</span>
+              </div>
+              <div class="border-t border-dashed border-slate-400 pt-1.5 flex justify-between font-bold text-xs">
+                <span>TOTAL A PAGAR:</span>
+                <span>S/ <span id="t-total">259.60</span></span>
+              </div>
+            </div>
+            <p class="font-bold text-sm tracking-wide">==========================================</p>
+
+            <!-- Código QR Oficial SUNAT -->
+            <div class="text-center my-3">
+              <img id="t-qr"
+                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=20123456789%7C03%7CB001-00000123%7C39.60%7C259.60%7C2026-11-01%7C1%7C74859612%7C"
+                alt="Código QR SUNAT" class="mx-auto w-24 h-24 border border-slate-300 p-1 bg-white">
+              <p class="text-[9px] text-slate-500 mt-1">[ CÓDIGO QR SUNAT ]</p>
+            </div>
+
+            <!-- Pie Legal de SUNAT -->
+            <div class="text-center text-[10px] space-y-1 text-slate-600 mt-2 pt-2 border-t border-slate-200">
+              <p>Representación impresa de la Boleta de Venta Electrónica.</p>
+              <p>Consulte su validez en <strong>www.sunat.gob.pe</strong></p>
+              <p class="font-bold text-slate-800 text-[11px] pt-1">¡Gracias por su compra!</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 2. VISTA: XML UBL 2.1 (Oculto por defecto hasta cambiar pestaña) -->
+        <div id="vista-xml" class="mt-4 hidden">
+          <pre id="xml-display"
+            class="bg-slate-900 text-pink-300 p-3 rounded-lg text-[11px] font-mono h-96 overflow-y-auto border border-slate-800 whitespace-pre leading-relaxed select-all">/* Aquí se mostrará el XML generado con el estándar UBL 2.1 de SUNAT */</pre>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // Configuración interna del Backend
+    const API_URL = 'http://localhost:3000';
+    const API_KEY = 'mi-super-api-key-secreta-2026';
+
+    let pollInterval = null;
+    let currentInvoiceId = null;
+
+    // Control de Pestañas (Ticket vs XML)
+    function cambiarPestana(pestana) {
+      const vTicket = document.getElementById('vista-ticket');
+      const vXml = document.getElementById('vista-xml');
+      const btnTicket = document.getElementById('tab-btn-ticket');
+      const btnXml = document.getElementById('tab-btn-xml');
+      const btnImprimir = document.getElementById('btn-imprimir');
+      const btnCopyXml = document.getElementById('btn-copy-xml');
+
+      if (pestana === 'ticket') {
+        vTicket.classList.remove('hidden');
+        vXml.classList.add('hidden');
+        btnTicket.className = "text-xs font-bold px-3 py-1.5 rounded-lg bg-pink-600 text-white shadow-sm flex items-center gap-1.5 transition";
+        btnXml.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5 transition";
+        btnImprimir.classList.remove('hidden');
+        btnCopyXml.classList.add('hidden');
+      } else {
+        vTicket.classList.add('hidden');
+        vXml.classList.remove('hidden');
+        btnTicket.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5 transition";
+        btnXml.className = "text-xs font-bold px-3 py-1.5 rounded-lg bg-pink-600 text-white shadow-sm flex items-center gap-1.5 transition";
+        btnImprimir.classList.add('hidden');
+        btnCopyXml.classList.remove('hidden');
+        btnCopyXml.classList.add('flex');
+      }
+    }
+
+    // Verificar Salud del Backend al Cargar
+    async function checkBackendHealth() {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('backend-status-text');
+
+      try {
+        const response = await fetch(`${API_URL}/api/v1/health`);
+        if (response.ok) {
+          dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+          text.textContent = "Backend Online (Puerto 3000)";
+          text.className = "text-xs font-medium text-pink-100";
+        } else {
+          throw new Error();
+        }
+      } catch (err) {
+        dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping";
+        text.textContent = "Backend Offline (Inicia app.js)";
+        text.className = "text-xs font-medium text-rose-200";
+      }
+    }
+
+    // Generar un número correlativo de Boleta aleatorio (Serie B001)
+    function generarNuevoCorrelativo() {
+      const randomNum = Math.floor(100000 + Math.random() * 900000);
+      document.getElementById('invoice-id').value = `B001-00${randomNum}`;
+    }
+
+    // Emitir la Boleta de Cosméticos
+    async function emitirFactura(event) {
+      event.preventDefault();
+      clearInterval(pollInterval);
+
+      const invoiceID = document.getElementById('invoice-id').value.trim();
+      const customerDni = document.getElementById('customer-id').value.trim() || '--------';
+      const customerName = document.getElementById('customer-name').value.trim() || 'CLIENTES VARIOS';
+      const invoiceType = document.getElementById('invoice-type').value;
+
+      currentInvoiceId = invoiceID;
+
+      // Reseteo de UI
+      resetSteps();
+      setStepActive('step-pos');
+      updateStatusBadge('PROCESANDO', 'bg-amber-100 text-amber-800 border border-amber-300', 'Enviando boleta al API Gateway...');
+
+      // Definición de los 5 productos de cosméticos
+      const cosmeticItems = [
+        { id: "1", desc: "Labial Mate Larga Duración (Rojo Pasión)", shortDesc: "Labial Mate Larga", qty: 2.00, price: 25.00, subtotal: 50.00 },
+        { id: "2", desc: "Base Líquida HD Mate Cobertura Total", shortDesc: "Base Líquida HD", qty: 1.00, price: 45.00, subtotal: 45.00 },
+        { id: "3", desc: "Máscara de Pestañas Waterproof Efecto Pestañina", shortDesc: "Máscara Pestañas", qty: 1.00, price: 30.00, subtotal: 30.00 },
+        { id: "4", desc: "Paleta de Sombras Nude 12 Tonos Profesionales", shortDesc: "Paleta Sombras 12", qty: 1.00, price: 55.00, subtotal: 55.00 },
+        { id: "5", desc: "Sérum Facial con Ácido Hialurónico 30ml", shortDesc: "Sérum Ácido Hialu.", qty: 1.00, price: 40.00, subtotal: 40.00 }
+      ];
+
+      const emisorRuc = "20123456789";
+      const fechaActual = new Date().toISOString().split('T')[0];
+      const horaActual = new Date().toTimeString().split(' ')[0];
+
+      const payload = {
+        ublVersion: "2.1",
+        customizationID: "2.0",
+        invoiceID: invoiceID,
+        issueDate: fechaActual,
+        issueTime: horaActual,
+        invoiceTypeCode: invoiceType, // 03 = Boleta de Venta
+        documentCurrencyCode: "PEN",
+        accountingSupplierParty: {
+          partyIdentification: { id: emisorRuc },
+          partyName: { name: "Boutique Cosméticos Perú S.A.C." }
+        },
+        accountingCustomerParty: {
+          partyIdentification: { id: customerDni },
+          partyName: { name: customerName }
+        },
+        taxTotal: {
+          taxAmount: { currencyID: "PEN", value: 39.60 }
+        },
+        legalMonetaryTotal: {
+          payableAmount: { currencyID: "PEN", value: 259.60 }
+        },
+        invoiceLine: cosmeticItems.map(item => ({
+          id: item.id,
+          invoicedQuantity: { unitCode: "NIU", value: item.qty },
+          lineExtensionAmount: { currencyID: "PEN", value: item.subtotal },
+          pricingReference: {
+            alternativeConditionPrice: {
+              priceAmount: { currencyID: "PEN", value: item.price },
+              priceTypeCode: "01"
+            }
+          },
+          item: { description: item.desc },
+          price: { priceAmount: { currencyID: "PEN", value: item.price } }
+        }))
+      };
+
+      // Actualizar la Representación Impresa (Ticket Térmico)
+      actualizarTicketImpreso({
+        numero: invoiceID,
+        fecha: `${fechaActual} ${horaActual.substring(0, 5)}`,
+        cliente: customerName,
+        dni: customerDni,
+        gravada: "220.00",
+        igv: "39.60",
+        total: "259.60",
+        emisorRuc: emisorRuc,
+        items: cosmeticItems
+      });
+
+      try {
+        const response = await fetch(`${API_URL}/api/v1/invoice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Error en la petición');
+        }
+
+        // Éxito en la ingesta
+        setStepDone('step-pos');
+        setStepDone('step-firestore');
+        setStepActive('step-pubsub'); // Paso 3 activo durante la permanencia en cola
+        
+        updateStatusBadge('EN_COLA_PUBSUB', 'bg-amber-100 text-amber-800 border border-amber-400 animate-pulse', 'Mensaje encolado en Google Cloud Pub/Sub. Tiempo en cola: 60s para visualización en consola...');
+
+        // Mostrar XML
+        if (result.data && result.data.xmlPreview) {
+          document.getElementById('xml-display').textContent = result.data.xmlPreview;
+        }
+
+        // Mostrar Metadata
+        document.getElementById('meta-info').classList.remove('hidden');
+        document.getElementById('meta-invoice-id').textContent = result.data.invoiceID;
+        document.getElementById('meta-pubsub-id').textContent = result.data.pubSubMessageId;
+        document.getElementById('meta-timestamp').textContent = result.data.processedAt;
+
+        // Iniciar Polling automático para esperar la confirmación del Worker
+        startStatusPolling(invoiceID);
+
+      } catch (error) {
+        updateStatusBadge('ERROR', 'bg-rose-100 text-rose-800 border border-rose-300', `Fallo al emitir: ${error.message}`);
+        console.error(error);
+      }
+    }
+
+    // Actualizar datos del Ticket Térmico en Pantalla
+    function actualizarTicketImpreso(datos) {
+      document.getElementById('t-numero').textContent = datos.numero;
+      document.getElementById('t-fecha').textContent = datos.fecha;
+      document.getElementById('t-cliente').textContent = datos.cliente;
+      document.getElementById('t-dni').textContent = datos.dni;
+      document.getElementById('t-gravada').textContent = datos.gravada;
+      document.getElementById('t-igv').textContent = datos.igv;
+      document.getElementById('t-total').textContent = datos.total;
+
+      // Generar URL del Código QR según formato oficial SUNAT:
+      // RUC | TIPO_COMPROBANTE | SERIE | CORRELATIVO | IGV | TOTAL | FECHA | TIPO_DOC_CLIENTE | NUM_DOC_CLIENTE |
+      const partes = datos.numero.split('-');
+      const serie = partes[0];
+      const numero = partes[1] || '00000001';
+      const qrRaw = `${datos.emisorRuc}|03|${serie}|${numero}|${datos.igv}|${datos.total}|${datos.fecha.split(' ')[0]}|1|${datos.dni}|`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrRaw)}`;
+      document.getElementById('t-qr').src = qrUrl;
+    }
+
+    // Consultar el estado en Firestore a través de GET /api/v1/invoice/:id
+    async function checkInvoiceStatus(invoiceId) {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/invoice/${invoiceId}`, {
+          headers: { 'x-api-key': API_KEY }
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json.data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    let countdownTimer = null;
+
+    // Polling con cuenta regresiva de 60 segundos
+    function startStatusPolling(invoiceId) {
+      let attempts = 0;
+      let segundosRestantes = 60;
+
+      clearInterval(countdownTimer);
+      clearInterval(pollInterval);
+
+      // Temporizador visual en pantalla (1 minuto)
+      countdownTimer = setInterval(() => {
+        segundosRestantes--;
+        if (segundosRestantes > 0) {
+          updateStatusBadge('EN_COLA_PUBSUB (60s)', 'bg-amber-100 text-amber-900 border border-amber-400', `Mensaje en cola de Google Cloud Pub/Sub. Extracción en: ${segundosRestantes}s (Revisa la consola de Pub/Sub)`);
+        } else {
+          clearInterval(countdownTimer);
+          setStepDone('step-pubsub');
+          setStepActive('step-worker');
+          updateStatusBadge('VALIDANDO_SUNAT', 'bg-blue-100 text-blue-900 border border-blue-400 animate-pulse', 'Extrayendo de Pub/Sub y enviando a SUNAT...');
+        }
+      }, 1000);
+
+      // Consulta de estado en Firestore cada 2 segundos durante hasta 90 segundos
+      pollInterval = setInterval(async () => {
+        attempts++;
+        const data = await checkInvoiceStatus(invoiceId);
+
+        if (data && data.status === 'ACCEPTED_BY_SUNAT') {
+          clearInterval(pollInterval);
+          clearInterval(countdownTimer);
+          setStepDone('step-pubsub');
+          setStepDone('step-worker');
+          updateStatusBadge('ACCEPTED_BY_SUNAT', 'bg-emerald-100 text-emerald-800 border border-emerald-400 font-bold', '¡Boleta de Venta UBL 2.1 Extraída de la Cola y Aprobada por SUNAT!');
+        }
+
+        if (attempts >= 45) { // 45 * 2s = 90 segundos máximo
+          clearInterval(pollInterval);
+          clearInterval(countdownTimer);
+        }
+      }, 2000);
+    }
+
+    async function consultarEstadoManual() {
+      const id = currentInvoiceId || document.getElementById('invoice-id').value.trim();
+      if (!id) return alert('Ingresa un ID de comprobante');
+
+      const data = await checkInvoiceStatus(id);
+      if (!data) {
+        alert('No se encontró el comprobante o el backend no está disponible.');
+        return;
+      }
+
+      if (data.status === 'ACCEPTED_BY_SUNAT') {
+        setStepDone('step-pos');
+        setStepDone('step-firestore');
+        setStepDone('step-pubsub');
+        setStepDone('step-worker');
+        updateStatusBadge('ACCEPTED_BY_SUNAT', 'bg-emerald-100 text-emerald-800 border border-emerald-400 font-bold', '¡Boleta de Venta UBL 2.1 Aprobada y Validada por SUNAT!');
+      } else {
+        updateStatusBadge(data.status || 'PENDIENTE', 'bg-amber-100 text-amber-800 border border-amber-300', 'El comprobante aún está en cola de procesamiento.');
+      }
+
+      if (data.xmlContent) {
+        document.getElementById('xml-display').textContent = data.xmlContent;
+      }
+    }
+
+    // Utilidades de UI
+    function updateStatusBadge(text, colorClasses, message) {
+      const badge = document.getElementById('status-badge');
+      badge.className = `inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${colorClasses}`;
+      badge.textContent = text;
+      document.getElementById('status-message').textContent = message;
+    }
+
+    function resetSteps() {
+      ['step-pos', 'step-firestore', 'step-pubsub', 'step-worker'].forEach(id => {
+        const el = document.getElementById(id);
+        el.className = "w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs mb-1";
+      });
+    }
+
+    function setStepActive(id) {
+      const el = document.getElementById(id);
+      el.className = "w-8 h-8 rounded-full bg-amber-400 text-white flex items-center justify-center font-bold text-xs mb-1 animate-pulse";
+    }
+
+    function setStepDone(id) {
+      const el = document.getElementById(id);
+      el.className = "w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs mb-1 shadow";
+      el.innerHTML = '<i class="fa-solid fa-check"></i>';
+    }
+
+    function copiarXML() {
+      const xml = document.getElementById('xml-display').textContent;
+      navigator.clipboard.writeText(xml).then(() => {
+        const btn = document.getElementById('btn-copy-xml');
+        btn.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> ¡Copiado!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copiar XML';
+        }, 2000);
+      });
+    }
+
+    // Inicializar chequeo al cargar
+    window.addEventListener('DOMContentLoaded', () => {
+      checkBackendHealth();
+    });
+  </script>
+</body>
+
+</html>

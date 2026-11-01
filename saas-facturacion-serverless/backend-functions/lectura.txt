@@ -1,0 +1,41 @@
+---http://localhost:3000/api/v1/invoice
+---
+
+{
+  "ublVersion": "2.1",
+  "customizationID": "2.0",
+  "invoiceID": "F001-00000123",
+  "issueDate": "2026-10-31",
+  "issueTime": "17:33:00",
+  "invoiceTypeCode": "01",
+  "documentCurrencyCode": "PEN",
+  "accountingSupplierParty": {
+    "partyIdentification": { "id": "20123456789" },
+    "partyName": { "name": "Mi Tienda POS S.A.C." }
+  },
+  "accountingCustomerParty": {
+    "partyIdentification": { "id": "10456789123" },
+    "partyName": { "name": "Cliente de Prueba" }
+  },
+  "taxTotal": {
+    "taxAmount": { "currencyID": "PEN", "value": 18.00 }
+  },
+  "legalMonetaryTotal": {
+    "payableAmount": { "currencyID": "PEN", "value": 118.00 }
+  },
+  "invoiceLine": [
+    {
+      "id": "1",
+      "invoicedQuantity": { "unitCode": "NIU", "value": 2.00 },
+      "lineExtensionAmount": { "currencyID": "PEN", "value": 100.00 },
+      "pricingReference": {
+        "alternativeConditionPrice": {
+          "priceAmount": { "currencyID": "PEN", "value": 50.00 },
+          "priceTypeCode": "01"
+        }
+      },
+      "item": { "description": "Producto de prueba POS" },
+      "price": { "priceAmount": { "currencyID": "PEN", "value": 50.00 } }
+    }
+  ]
+}
