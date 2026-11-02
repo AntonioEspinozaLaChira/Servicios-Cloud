@@ -1,16 +1,20 @@
 const { PubSub } = require('@google-cloud/pubsub');
 const path = require('path');
+const fs = require('fs');
 
-// Apuntar con ruta absoluta exacta para evitar fallos de ubicación
 const keyPath = path.resolve(__dirname, '../../serviceAccountKey.json');
+const pubSubOptions = {
+  projectId: process.env.GCP_PROJECT_ID || "saas-facturacion-peru-6b3e3"
+};
 
-// Usar el ID real de tu proyecto en Google Cloud
-const pubSubClient = new PubSub({
-  keyFilename: keyPath,
-  projectId: "saas-facturacion-peru-6b3e3" // <-- Apuntando al proyecto correcto donde creaste el tema
-});
+// Si el archivo existe en local, se usa. En Cloud Run se usan credenciales nativas (ADC).
+if (fs.existsSync(keyPath)) {
+  pubSubOptions.keyFilename = keyPath;
+}
 
-const TOPIC_NAME = 'cola-emision-boletas';
+const pubSubClient = new PubSub(pubSubOptions);
+const TOPIC_NAME = process.env.PUBSUB_TOPIC_NAME || 'cola-emision-boletas';
+
 async function publishInvoiceToQueue(invoiceData, xmlContent) {
   try {
     const topic = pubSubClient.topic(TOPIC_NAME);

@@ -2,12 +2,19 @@ const { PubSub } = require('@google-cloud/pubsub');
 const path = require('path');
 const { db } = require('./utils/firebase');
 
-// Apuntar con ruta absoluta exacta al archivo de credenciales
-const keyPath = path.resolve(__dirname, '../serviceAccountKey.json');
+const fs = require('fs');
 
-const pubSubClient = new PubSub({
-  keyFilename: keyPath
-});
+// Apuntar con ruta absoluta al archivo de credenciales si existe en local
+const keyPath = path.resolve(__dirname, '../serviceAccountKey.json');
+const pubSubOptions = {
+  projectId: process.env.GCP_PROJECT_ID || "saas-facturacion-peru-6b3e3"
+};
+
+if (fs.existsSync(keyPath)) {
+  pubSubOptions.keyFilename = keyPath;
+}
+
+const pubSubClient = new PubSub(pubSubOptions);
 
 const SUBSCRIPTION_NAME = 'cola-emision-boletas-sub';
 
