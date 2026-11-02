@@ -42,6 +42,21 @@ const verifyApiKey = (req, res, next) => {
 };
 
 /**
+ * Endpoint Raíz de Bienvenida y Salud
+ */
+app.get('/', (req, res) => {
+  return res.status(200).json({
+    status: 'online',
+    service: 'SaaS Facturación Electrónica UBL 2.1 (SUNAT)',
+    endpoints: {
+      health: '/api/v1/health',
+      invoice: '/api/v1/invoice'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
  * Endpoint de Salud / Verificación de estado de la API
  */
 app.get('/api/v1/health', (req, res) => {
@@ -150,12 +165,12 @@ app.post('/api/v1/invoice', verifyApiKey, async (req, res) => {
   }
 });
 
-// Puerto de escucha del servidor backend
-const PORT = process.env.PORT || 3000;
+// Puerto de escucha del servidor backend (0.0.0.0 requerido por Cloud Run)
+const PORT = process.env.PORT || 8080;
 let server;
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () => {
-    console.log(`Servidor backend UBL 2.1 (Fase 3 - Pub/Sub) ejecutándose en http://localhost:${PORT}`);
+  server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor backend UBL 2.1 (Fase 3 - Pub/Sub) ejecutándose en puerto ${PORT}`);
   });
 }
 
