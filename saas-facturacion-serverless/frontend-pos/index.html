@@ -51,6 +51,10 @@
         </div>
       </div>
       <div class="flex items-center gap-3 text-sm">
+        <select id="api-env-select" onchange="cambiarEntornoApi(this.value)" class="text-xs bg-pink-950 text-pink-100 border border-pink-700/60 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer font-medium">
+          <option value="https://backend-facturacion-319646120262.us-central1.run.app" selected>☁️ Cloud Run (GCP Producción)</option>
+          <option value="http://localhost:3000">💻 Localhost (Puerto 3000)</option>
+        </select>
         <div id="backend-status-badge"
           class="flex items-center gap-2 bg-pink-950/70 border border-pink-700/50 px-3 py-1.5 rounded-full">
           <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" id="status-dot"></span>
@@ -436,9 +440,16 @@
   </main>
 
   <script>
-    // Configuración interna del Backend
-    const API_URL = 'http://localhost:3000';
+    // Configuración interna del Backend (Por defecto: Cloud Run desplegado en GCP)
+    let API_URL = 'https://backend-facturacion-319646120262.us-central1.run.app';
     const API_KEY = 'mi-super-api-key-secreta-2026';
+
+    function cambiarEntornoApi(nuevaUrl) {
+      API_URL = nuevaUrl;
+      const text = document.getElementById('backend-status-text');
+      text.textContent = 'Conectando...';
+      checkBackendHealth();
+    }
 
     let pollInterval = null;
     let currentInvoiceId = null;
@@ -479,14 +490,14 @@
         const response = await fetch(`${API_URL}/api/v1/health`);
         if (response.ok) {
           dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-          text.textContent = "Backend Online (Puerto 3000)";
+          text.textContent = API_URL.includes('localhost') ? "Backend Online (Local: 3000)" : "Backend Online (GCP Cloud Run)";
           text.className = "text-xs font-medium text-pink-100";
         } else {
           throw new Error();
         }
       } catch (err) {
         dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping";
-        text.textContent = "Backend Offline (Inicia app.js)";
+        text.textContent = API_URL.includes('localhost') ? "Backend Offline (Inicia app.js)" : "Backend Offline (Cloud Run no responde)";
         text.className = "text-xs font-medium text-rose-200";
       }
     }
