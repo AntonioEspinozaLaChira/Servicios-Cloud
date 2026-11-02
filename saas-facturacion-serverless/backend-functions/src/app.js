@@ -1,3 +1,5 @@
+console.log(`[BOOT] Iniciando backend Facturación Electrónica UBL 2.1... Node: ${process.version}, PORT: ${process.env.PORT}`);
+
 const express = require('express');
 const dotenv = require('dotenv');
 const { generateUBLXML } = require('./utils/xmlBuilder');
@@ -166,11 +168,11 @@ app.post('/api/v1/invoice', verifyApiKey, async (req, res) => {
 });
 
 // Puerto de escucha del servidor backend (0.0.0.0 requerido por Cloud Run)
-const PORT = process.env.PORT || 8080;
+const PORT = parseInt(process.env.PORT, 10) || 8080;
 let server;
 if (process.env.NODE_ENV !== 'test') {
   server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor backend UBL 2.1 (Fase 3 - Pub/Sub) ejecutándose en puerto ${PORT}`);
+    console.log(`[BOOT] Servidor backend UBL 2.1 escuchando exitosamente en http://0.0.0.0:${PORT}`);
   });
 }
 
